@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Sri Sairam Agencies - Invoice</title>
+  <style>
+    body {
+      font-family: 'Arial', sans-serif;
+      margin: 0;
+      padding: 20px;
+      color: #333;
+      background-color: #f9f9f9;
+    }
+    .invoice-container {
+      max-width: 800px;
+      margin: 0 auto;
+      background-color: #fff;
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+      border: 2px solid #2196F3;
+    }
+    .invoice-header {
+      border-bottom: 2px solid #2196F3;
+      padding: 15px;
+      background-color: #ffffff;
+      text-align: center;
+    }
+    .header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .gst-info {
+      text-align: left;
+    }
+    .gst-number {
+      font-weight: bold;
+      color: #2196F3;
+    }
+    .bill-title {
+      font-size: 18px;
+      font-weight: bold;
+      text-decoration: underline;
+      color: #2196F3;
+      text-transform: uppercase;
+    }
+    .contact-cell {
+      text-align: right;
+      font-weight: bold;
+      color: #2196F3;
+    }
+    .header-content {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .logo {
+      width: 70px;
+      height: 70px;
+      border-radius: 50%;
+      overflow: hidden;
+      border: 1px solid #2196F3;
+    }
+    .logo img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+    .shop-details {
+      flex-grow: 1;
+      text-align: center;
+    }
+    .shop-name {
+      font-size: 24px;
+      font-weight: bold;
+      color: #2196F3;
+      margin-bottom: 5px;
+    }
+    .shop-address {
+      font-size: 14px;
+      color: #2196F3;
+    }
+    .invoice-info {
+      padding: 10px 15px;
+      display: flex;
+      justify-content: space-between;
+      border-bottom: 1px solid #2196F3;
+    }
+    .customer-info, .invoice-details {
+      font-size: 14px;
+    }
+    .invoice-items {
+      padding: 0 15px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th, td {
+      border: 1px solid #2196F3;
+      padding: 8px;
+      text-align: center;
+    }
+    th {
+      background-color: #f0f7ff;
+      font-weight: bold;
+      color: #2196F3;
+    }
+    .invoice-summary {
+      margin-top: 15px;
+      border-top: 1px solid #2196F3;
+      padding: 10px 15px;
+    }
+    .summary-container {
+      width: 50%;
+      margin-left: auto;
+      border: 1px solid #2196F3;
+    }
+    .summary-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 5px 10px;
+      border-bottom: 1px solid #e1e1e1;
+    }
+    .summary-row:last-child {
+      border-bottom: none;
+    }
+    .summary-label {
+      font-weight: bold;
+    }
+    .total-row {
+      font-weight: bold;
+      font-size: 16px;
+      background-color: #f0f7ff;
+      color: #2196F3;
+    }
+    .signatures {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 40px;
+      padding: 0 20px 20px;
+    }
+    .signature {
+      text-align: center;
+      width: 150px;
+    }
+    .signature-line {
+      border-top: 1px solid #2196F3;
+      margin-top: 40px;
+      padding-top: 5px;
+    }
+    .hsn-code {
+      font-size: 13px;
+    }
+    .invoice-number {
+      font-size: 15px;
+      font-weight: bold;
+    }
+  </style>
+  <script>
+    function formatCurrency(amount) {
+      return '₹' + parseFloat(amount).toFixed(2);
+    }
+
+    function populateTable() {
+      try {
+        const itemsJson = JSON.parse('{{ITEMS_JSON}}');  // dynamically inserted by server
+        const tableBody = document.getElementById('items-table');
+        let subtotal = 0, totalCGST = 0, totalSGST = 0, totalIGST = 0, totalGST = 0;
+        tableBody.innerHTML = '';
+
+        itemsJson.forEach((item, index) => {
+          const row = document.createElement('tr');
+          subtotal += parseFloat(item.grossAmount);
+          totalCGST += parseFloat(item.cgst || 0);
+          totalSGST += parseFloat(item.sgst || 0);
+          totalIGST += parseFloat(item.igst || 0) || 0;
+          totalGST += parseFloat(item.gstAmount || 0);
+          row.innerHTML = `
+            <td>${index + 1}</td>
+            <td>${item.item}</td>
+            <td class="hsn-code">${item.hsn}</td>
+            <td>${item.quantity}</td>
+            <td>${formatCurrency(item.price)}</td>
+            <td>${formatCurrency(item.grossAmount)}</td>
+          `;
+          tableBody.appendChild(row);
+        });
+
+        document.getElementById('subtotal').textContent = formatCurrency(subtotal);
+        document.getElementById('cgst').textContent = formatCurrency(totalCGST);
+        document.getElementById('sgst').textContent = formatCurrency(totalSGST);
+        document.getElementById('igst').textContent = formatCurrency(totalIGST);
+        document.getElementById('gst-total').textContent = formatCurrency(totalGST);
+        document.getElementById('final-total').textContent = formatCurrency(subtotal + totalGST);
+      } catch (error) {
+        console.error("Error loading invoice:", error);
+      }
+    }
+
+    window.onload = populateTable;
+  </script>
+</head>
+<body>
+  <div class="invoice-container">
+    <div class="invoice-header">
+      <div class="header-top">
+        <div class="gst-info">
+          <div class="gst-number">GSTIN: 37AOUPD0104J1Z2</div>
+          <div class="invoice-number">Invoice No: SSA/24-25</div>
+        </div>
+        <div class="bill-title">BILL OF SUPPLY</div>
+        <div class="contact-cell">CELL: 9848414640</div>
+      </div>
+      <div class="header-content">
+        <div class="logo">
+          <img src="/api/placeholder/70/70" alt="Sri Sairam Agencies Logo">
+        </div>
+        <div class="shop-details">
+          <div class="shop-name">శ్రీ సాయిరాం ఏజెన్సీస్</div>
+          <div class="shop-name">Sri Sairam Agencies</div>
+          <div class="shop-address">TMB Bank Road, Jaggaiahpet - 521175, N.T.R District</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="invoice-info">
+      <div class="customer-info">
+        <div>Customer Name: {{CUSTOMER_NAME}}</div>
+        <div>Village/Town: {{CUSTOMER_LOCATION}}</div>
+        <div>GSTIN: {{CUSTOMER_GST}}</div>
+      </div>
+      <div class="invoice-details">
+        <div>Date: {{DATE}}</div>
+        <div>Time: {{TIME}}</div>
+      </div>
+    </div>
+
+    <div class="invoice-items">
+      <table>
+        <thead>
+          <tr>
+            <th>S.No</th>
+            <th>Particulars</th>
+            <th>HSN Code</th>
+            <th>Qty</th>
+            <th>Rate</th>
+            <th>Amount</th>
+          </tr>
+        </thead>
+        <tbody id="items-table">
+          <!-- Filled by JS -->
+        </tbody>
+      </table>
+    </div>
+
+    <div class="invoice-summary">
+      <div class="summary-container">
+        <div class="summary-row">
+          <div class="summary-label">Subtotal:</div>
+          <div id="subtotal">₹0.00</div>
+        </div>
+        <div class="summary-row">
+          <div class="summary-label">CGST:</div>
+          <div id="cgst">₹0.00</div>
+        </div>
+        <div class="summary-row">
+          <div class="summary-label">SGST:</div>
+          <div id="sgst">₹0.00</div>
+        </div>
+        <div class="summary-row">
+          <div class="summary-label">IGST:</div>
+          <div id="igst">₹0.00</div>
+        </div>
+        <div class="summary-row">
+          <div class="summary-label">GST Total:</div>
+          <div id="gst-total">₹0.00</div>
+        </div>
+        <div class="summary-row total-row">
+          <div class="summary-label">TOTAL:</div>
+          <div id="final-total">₹0.00</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="signatures">
+      <div class="signature">
+        <div class="signature-line">Customer Signature</div>
+      </div>
+      <div class="signature">
+        <div class="signature-line">Authorized Signature</div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <style>
+      body {
+        font-family: 'Segoe UI', sans-serif;
+        background: #f4f9ff;
+        padding: 20px;
+        color: #333;
+      }
+
+      h2 {
+        color: #0066cc;
+      }
+
+      label {
+        font-weight: bold;
+        display: block;
+        margin-top: 15px;
+      }
+
+      select, input[type="text"], input[type="number"], input[type="date"] {
+        width: 100%;
+        padding: 8px;
+        margin-top: 5px;
+        box-sizing: border-box;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+      }
+
+      .item-row {
+        background: #e9f3ff;
+        padding: 10px;
+        margin-bottom: 10px;
+        border-radius: 8px;
+        display: grid;
+        grid-template-columns: repeat(6, 1fr) auto;
+        gap: 10px;
+      }
+
+      .item-row input, .item-row select {
+        width: 100%;
+      }
+
+      .button {
+        background-color: #0066cc;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        margin-top: 20px;
+        cursor: pointer;
+        border-radius: 5px;
+        font-weight: bold;
+      }
+
+      .button:hover {
+        background-color: #004c99;
+      }
+
+      #preview {
+        margin-top: 40px;
+        padding: 20px;
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 0 8px rgba(0,0,0,0.2);
+      }
+
+      .hidden {
+        display: none;
+      }
+    </style>
+    <script>
+      let shopData = {};
+      let itemData = {};
+
+      window.onload = function () {
+        google.script.run.withSuccessHandler(loadShops).getShopData();
+        google.script.run.withSuccessHandler(loadItems).getItemData();
+        // addItemRow();
+      }
+
+      function loadShops(data) {
+        shopData = data;
+        const shopSelect = document.getElementById("shop");
+        for (let shop in data) {
+          let opt = document.createElement("option");
+          opt.value = shop;
+          opt.textContent = shop;
+          shopSelect.appendChild(opt);
+        }
+        let otherOpt = document.createElement("option");
+        otherOpt.value = "__other__";
+        otherOpt.textContent = "Other";
+        shopSelect.appendChild(otherOpt);
+      }
+
+      function loadItems(data) {
+        itemData = data;
+      }
+
+      function fillGST() {
+        const shopName = document.getElementById("shop").value;
+        const gstField = document.getElementById("gst");
+        const customShopDiv = document.getElementById("custom-shop");
+        if (shopName === "__other__") {
+          customShopDiv.classList.remove("hidden");
+          gstField.value = "";
+          gstField.removeAttribute("required");
+        } else {
+          customShopDiv.classList.add("hidden");
+          gstField.value = shopData[shopName] || '';
+          gstField.setAttribute("required", "true");
+        }
+      }
+
+      function fillHSN(selectElem) {
+        const itemName = selectElem.value;
+        const row = selectElem.closest(".item-row");
+        const hsnInput = row.querySelector(".hsn");
+        const customInput = row.querySelector(".custom-item");
+
+        if (itemName === "__other__") {
+          customInput.classList.remove("hidden");
+          hsnInput.value = "";
+          hsnInput.removeAttribute("readonly");
+        } else {
+          customInput.classList.add("hidden");
+          hsnInput.value = itemData[itemName] || '';
+          hsnInput.setAttribute("readonly", "true");
+        }
+      }
+
+      function onStateChange() {
+        const state = document.getElementById("state").value;
+        const customState = document.getElementById("custom-state-div");
+        if (state === "Other") {
+          customState.classList.remove("hidden");
+        } else {
+          customState.classList.add("hidden");
+        }
+      }
+
+      function addItemRow() {
+        const container = document.getElementById("items");
+        const row = document.createElement("div");
+        row.className = "item-row";
+        row.innerHTML = `
+          <select class="item" onchange="fillHSN(this)" required>
+            <option value="">Select item</option>
+            ${Object.keys(itemData).map(item => `<option value="${item}">${item}</option>`).join('')}
+            <option value="__other__">Other</option>
+          </select>
+          <input type="text" class="custom-item hidden" placeholder="Enter item name manually">
+          <input class="hsn" placeholder="HSN" readonly>
+          <input class="quantity" type="number" placeholder="Qty" required>
+          <input class="price" type="number" placeholder="Price" required>
+          <input class="gstRate" type="number" placeholder="GST %" required>
+          <button type="button" onclick="this.parentNode.remove()">Remove</button>
+        `;
+        container.appendChild(row);
+      }
+
+      function previewBill() {
+        const items = Array.from(document.querySelectorAll(".item-row")).map(row => ({
+          item: row.querySelector(".item").value === "__other__"
+            ? row.querySelector(".custom-item").value
+            : row.querySelector(".item").value,
+          hsn: row.querySelector(".hsn").value,
+          quantity: row.querySelector(".quantity").value,
+          price: row.querySelector(".price").value,
+          gstRate: row.querySelector(".gstRate").value
+        }));
+
+        const shopVal = document.getElementById("shop").value;
+        const shop = shopVal === "__other__"
+          ? document.getElementById("custom-shop-name").value
+          : shopVal;
+
+        const gst = document.getElementById("gst").value || "N/A";
+        const city = document.getElementById("city").value;
+        const stateVal = document.getElementById("state").value;
+        const state = stateVal === "Other"
+          ? document.getElementById("custom-state").value
+          : stateVal;
+        const date = document.getElementById("date").value;
+
+        let subtotal = 0;
+        let gstTotal = 0;
+        let previewItems = "";
+
+        items.forEach(item => {
+          const price = parseFloat(item.price);
+          const qty = parseFloat(item.quantity);
+          const gstRate = parseFloat(item.gstRate);
+          const gross = price * qty;
+          const gstAmount = (gross * gstRate) / (100 + gstRate);
+          const base = gross - gstAmount;
+
+          subtotal += base;
+          gstTotal += gstAmount;
+
+          previewItems += `<tr>
+            <td>${item.item}</td>
+            <td>${item.hsn}</td>
+            <td>${qty}</td>
+            <td>₹${price}</td>
+            <td>₹${base.toFixed(2)}</td>
+            <td>${gstRate}%</td>
+            <td>₹${gstAmount.toFixed(2)}</td>
+          </tr>`;
+        });
+
+        const finalTotal = subtotal + gstTotal;
+
+        document.getElementById("preview").innerHTML = `
+          <h3>Bill Preview</h3>
+          <p><strong>Shop:</strong> ${shop} | <strong>GST:</strong> ${gst}</p>
+          <p><strong>City:</strong> ${city} | <strong>State:</strong> ${state} | <strong>Date:</strong> ${date}</p>
+          <table border="1" width="100%" cellpadding="5" cellspacing="0">
+            <tr>
+              <th>Item</th><th>HSN</th><th>Qty</th><th>Price</th><th>Base Amt</th><th>GST%</th><th>GST Amt</th>
+            </tr>
+            ${previewItems}
+          </table>
+          <p><strong>Subtotal:</strong> ₹${subtotal.toFixed(2)} | <strong>GST:</strong> ₹${gstTotal.toFixed(2)} | <strong>Total:</strong> ₹${finalTotal.toFixed(2)}</p>
+          <button class="button" onclick="submitForm()">✅ Submit Bill</button>
+        `;
+      }
+
+      function submitForm() {
+        const items = Array.from(document.querySelectorAll(".item-row")).map(row => ({
+          item: row.querySelector(".item").value === "__other__"
+            ? row.querySelector(".custom-item").value
+            : row.querySelector(".item").value,
+          hsn: row.querySelector(".hsn").value,
+          quantity: row.querySelector(".quantity").value,
+          price: row.querySelector(".price").value,
+          gstRate: row.querySelector(".gstRate").value
+        }));
+
+        const shopVal = document.getElementById("shop").value;
+        const shop = shopVal === "__other__"
+          ? document.getElementById("custom-shop-name").value
+          : shopVal;
+
+        const data = {
+          shop: shop,
+          gst: document.getElementById("gst").value,
+          city: document.getElementById("city").value,
+          state: document.getElementById("state").value === "Other"
+            ? document.getElementById("custom-state").value
+            : document.getElementById("state").value,
+          date: document.getElementById("date").value,
+          items
+        };
+
+        google.script.run.withSuccessHandler(function (msg) {
+          alert(msg);
+          document.getElementById("bill-form").reset();
+          document.getElementById("items").innerHTML = '';
+          addItemRow();
+          document.getElementById("preview").innerHTML = '';
+          window.location.href = response.redirectUrl;
+        }).submitForm(data);
+      }
+    </script>
+  </head>
+  <body>
+    <h2>🧾 Grocery Bill Entry</h2>
+    <form id="bill-form" onsubmit="event.preventDefault(); previewBill();">
+      <label>Shop Name:</label>
+      <select id="shop" onchange="fillGST()" required>
+        <option value="">Select shop</option>
+      </select>
+      <div id="custom-shop" class="hidden">
+        <input type="text" id="custom-shop-name" placeholder="Enter shop name manually">
+      </div>
+
+      <label>GST Number:</label>
+      <input type="text" id="gst">
+
+      <label>City:</label>
+      <input type="text" id="city" required>
+
+      <label>State:</label>
+      <select id="state" onchange="onStateChange()" required>
+        <option value="">Select state</option>
+        <option value="Andhra Pradesh">Andhra Pradesh</option>
+        <option value="Other">Other</option>
+      </select>
+      <div id="custom-state-div" class="hidden">
+        <input type="text" id="custom-state" placeholder="Enter state name">
+      </div>
+
+      <label>Date:</label>
+      <input type="date" id="date" required>
+
+      <label>Items:</label>
+      <div id="items"></div>
+      <button class="button" type="button" onclick="addItemRow()">+ Add Item</button>
+
+      <button class="button" type="submit">👁️ Check Bill</button>
+    </form>
+
+    <div id="preview"></div>
+  </body>
+</html>
